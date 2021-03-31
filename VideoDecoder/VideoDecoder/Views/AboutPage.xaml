@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:skia="clr-namespace:SkiaSharp.Views.Forms;assembly=SkiaSharp.Views.Forms"
+             xmlns:xct="clr-namespace:Xamarin.CommunityToolkit.UI.Views;assembly=Xamarin.CommunityToolkit"
+             x:Class="VideoDecoder.Views.AboutPage"
+             xmlns:vm="clr-namespace:VideoDecoder.ViewModels"
+             Title="{Binding Title}"
+             BackgroundColor="BurlyWood">
+    
+    <ContentPage.BindingContext>
+        <vm:AboutViewModel />
+    </ContentPage.BindingContext>
+    
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="Accent">#96d1ff</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <skia:SKCanvasView Grid.Row="0" x:Name="CanvasView" PaintSurface="OnCanvasViewPaintSurface"/>
+        <Image Grid.Row="1" Source="https://www.yesplz.coffee/app/uploads/2020/11/emptybag-min.png"/>
+        <xct:MediaElement x:Name="mediaElement" Grid.Row="2" Source="ms-appx:///robot.mp4"
+              ShowsPlaybackControls="True" />
+    </Grid>
+
+</ContentPage>
