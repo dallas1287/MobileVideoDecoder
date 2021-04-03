@@ -26,8 +26,8 @@
         </Grid.RowDefinitions>
         <skia:SKCanvasView Grid.Row="0" x:Name="CanvasView" PaintSurface="OnCanvasViewPaintSurface"/>
         <Image Grid.Row="1" Source="https://www.yesplz.coffee/app/uploads/2020/11/emptybag-min.png"/>
-        <xct:MediaElement x:Name="mediaElement" Grid.Row="2" Source="ms-appx:///robot.mp4"
-              ShowsPlaybackControls="True" />
+        <!--<xct:MediaElement x:Name="mediaElement" Grid.Row="2" Source="ms-appx:///robot.mp4"
+              ShowsPlaybackControls="True" />-->
     </Grid>
 
 </ContentPage>
