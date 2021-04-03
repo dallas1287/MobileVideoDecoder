@@ -1,19 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using AVFoundation;
-using CoreAnimation;
 using CoreGraphics;
 using CoreMedia;
 using CoreVideo;
 using Foundation;
 using ObjCRuntime;
-using UIKit;
 using VideoToolbox;
+using System.Timers;
 
 namespace VideoDecoder.iOS
 {
@@ -28,6 +24,7 @@ namespace VideoDecoder.iOS
         Dictionary<long, Tuple<double, CVPixelBuffer>> mOutputFrames;
         CMTime mFrameDuration;
         long nextPts;
+        Timer mPlaybackTimer;
 
         public IOSNativeDecoder(IOSCustomUIView view)
         {
@@ -35,7 +32,18 @@ namespace VideoDecoder.iOS
             mOutputFrames = new Dictionary<long, Tuple<double, CVPixelBuffer>>();
         }
 
-        public void Init(string filepath)
+        public void StartPlayback()
+        {
+            mPlaybackTimer = new Timer(33);
+            mPlaybackTimer.AutoReset = true;
+            mPlaybackTimer.Elapsed += new ElapsedEventHandler(delegate (Object source, ElapsedEventArgs e)
+            {
+                PushNextFrame();
+            });
+            mPlaybackTimer.Enabled = true;
+        }
+
+        public async Task InitAsync(string filepath)
         {
             if (!File.Exists(filepath))
                 Console.WriteLine("Does not exist");
@@ -43,6 +51,7 @@ namespace VideoDecoder.iOS
             mAsset = AVAsset.FromUrl(url);
             nextPts = 0;
             BuildTrackOutput(mAsset);
+            await ReadSampleBuffers();
         }
 
         void BuildTrackOutput(AVAsset asset)
@@ -58,13 +67,12 @@ namespace VideoDecoder.iOS
             videoTrackOutput = AVAssetReaderTrackOutput.Create(videoTrack, (AVVideoSettingsUncompressed)null);
             if (assetReader.CanAddOutput(videoTrackOutput))
                 assetReader.AddOutput(videoTrackOutput);
-
         }
 
-        public void ReadSampleBuffers()
+        public Task ReadSampleBuffers()
         {
             if (assetReader.Status != AVAssetReaderStatus.Reading && !assetReader.StartReading())
-                return;
+                return Task.CompletedTask;
 
             while (assetReader.Status == AVAssetReaderStatus.Reading)
             {
@@ -82,11 +90,14 @@ namespace VideoDecoder.iOS
                 }
                 else if (assetReader.Status == AVAssetReaderStatus.Completed)
                 {
-                    Console.WriteLine("Reached End of Video");
+                    foreach(var frame in mOutputFrames)
+                    {
+                        Console.WriteLine("Frame Key: " + frame.Key);
+                    }
                     decompSession.Dispose();
                 }
             }
-
+            return Task.CompletedTask;
         }
 
         public void CreateDecompSession(AVAssetTrack track)
@@ -103,8 +114,6 @@ namespace VideoDecoder.iOS
 
         private void DecompressOutputCallback(IntPtr sourceFrame, VTStatus status, VTDecodeInfoFlags flags, CVImageBuffer buffer, CMTime presentationTimeStamp, CMTime presentationDuration)
         {
-            Console.WriteLine("Pts secs: " + presentationTimeStamp.Seconds + " abs: " + presentationTimeStamp.Value + "/" + presentationTimeStamp.TimeScale +
-                " Duration: " + presentationDuration.Value + "/" + presentationDuration.TimeScale);
             if (status != VTStatus.Ok)
                 Console.WriteLine("Error decompresing frame: {0:#.###} error: {1} infoFlags: {2}", (float)presentationTimeStamp.Value / presentationTimeStamp.TimeScale, (int)status, flags);
             if (buffer == null)
@@ -118,22 +127,18 @@ namespace VideoDecoder.iOS
 
             mFrameDuration = presentationDuration;
             var pixelBuffer = Runtime.GetINativeObject<CVPixelBuffer>(buffer.Handle, false);
-            Console.WriteLine("Adding Key: " + presentationTimeStamp.Value);
             mOutputFrames.Add(presentationTimeStamp.Value, new Tuple<double, CVPixelBuffer>(presentationTimeStamp.Seconds, pixelBuffer));
-            OutputAndIncrementDisplayTimestamp();
         }
 
-        bool OutputAndIncrementDisplayTimestamp()
-        {         
-            if(mOutputFrames.ContainsKey(nextPts))
+        void PushNextFrame()
+        {
+            if (mOutputFrames.ContainsKey(nextPts))
             {
-                Console.WriteLine("Push Next Frame: " + nextPts);
                 mUiView.PushNextFrame(mOutputFrames[nextPts].Item2, mOutputFrames[nextPts].Item1, videoPreferredTransform);
+                if (mOutputFrames.ContainsKey(nextPts - mFrameDuration.Value))
+                    mOutputFrames.Remove(nextPts - mFrameDuration.Value);
                 nextPts += mFrameDuration.Value;
-                return true;
             }
-            Console.WriteLine("Didnt push frame Pts: " + nextPts + " dict size: " + mOutputFrames.Count);
-            return false;
         }
     }
 }

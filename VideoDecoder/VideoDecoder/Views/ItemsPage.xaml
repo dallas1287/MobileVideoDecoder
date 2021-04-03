@@ -17,7 +17,6 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Button Text="Click Me" Grid.Row="0"/>
         <cst:CustomMediaView Grid.Row="1"/>
     </Grid>
 </ContentPage>
